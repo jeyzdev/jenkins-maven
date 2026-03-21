@@ -7,56 +7,59 @@ pipeline {
     }
 
     stages {
-
         stage('Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/jeyz9/store-mate-api.git'
             }
         }
 
-        stage('Build') {
+        stage('Build Artifact') {
             steps {
-                sh 'mvn clean package -DskipTests'
+                // ใช้ Double Quote เพื่อความชัวร์ในการดึงค่า Env (ถ้ามี)
+                sh "mvn clean package -DskipTests"
             }
         }
 
         stage('Test') {
             steps {
-                sh 'mvn test'
+                sh "mvn test"
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Build & Cleanup') {
             steps {
-                sh 'docker build -t $IMAGE_NAME .'
+                // สร้าง Image ใหม่ และลบ Image เก่าที่ไม่มีชื่อ (dangling) เพื่อประหยัดพื้นที่
+                sh """
+                docker build -t ${IMAGE_NAME} .
+                docker image prune -f
+                """
             }
         }
 
-        stage('Stop Old Container') {
+        stage('Deploy') {
             steps {
-                sh '''
-                docker stop $CONTAINER_NAME || true
-                docker rm $CONTAINER_NAME || true
-                '''
-            }
-        }
-
-        stage('Run New Container') {
-            steps {
-                sh '''
+                // รวม Stop และ Run ไว้ด้วยกันเพื่อความต่อเนื่อง
+                sh """
+                docker stop ${CONTAINER_NAME} || true
+                docker rm ${CONTAINER_NAME} || true
                 docker run -d -p 8080:8080 \
-                --name $CONTAINER_NAME \
-                $IMAGE_NAME
-                '''
+                --name ${CONTAINER_NAME} \
+                ${IMAGE_NAME}
+                """
             }
         }
     }
 
     post {
         success {
-            echo 'Deploy Success!'
+            echo '🚀 Deploy Success!'
         }
         failure {
-            echo 'Build Failed!'
+            echo '❌ Build Failed!'
+        }
+        always {
+            // ลบไฟล์ใน Workspace เพื่อไม่ให้ Disk เต็ม (เลือกใช้ตามความเหมาะสม)
+            cleanWs()
         }
     }
+}
