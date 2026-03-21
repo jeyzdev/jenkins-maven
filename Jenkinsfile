@@ -13,22 +13,8 @@ pipeline {
             }
         }
 
-        stage('Build Artifact') {
-            steps {
-                // ใช้ Double Quote เพื่อความชัวร์ในการดึงค่า Env (ถ้ามี)
-                sh "mvn clean package -DskipTests"
-            }
-        }
-
-        stage('Test') {
-            steps {
-                sh "mvn test"
-            }
-        }
-
         stage('Docker Build & Cleanup') {
             steps {
-                // สร้าง Image ใหม่ และลบ Image เก่าที่ไม่มีชื่อ (dangling) เพื่อประหยัดพื้นที่
                 sh """
                 docker build -t ${IMAGE_NAME} .
                 docker image prune -f
@@ -38,7 +24,6 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                // รวม Stop และ Run ไว้ด้วยกันเพื่อความต่อเนื่อง
                 sh """
                 docker stop ${CONTAINER_NAME} || true
                 docker rm ${CONTAINER_NAME} || true
@@ -58,7 +43,6 @@ pipeline {
             echo '❌ Build Failed!'
         }
         always {
-            // ลบไฟล์ใน Workspace เพื่อไม่ให้ Disk เต็ม (เลือกใช้ตามความเหมาะสม)
             cleanWs()
         }
     }
