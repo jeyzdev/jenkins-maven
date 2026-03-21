@@ -1,6 +1,5 @@
 pipeline {
-    // แนะนำให้ตั้ง agent any ไว้ที่นี่เลยเพื่อให้ครอบคลุมทุก stage และ post
-    agent any 
+    agent none // ปิด global agent เพื่อไปคุมเองในแต่ละส่วน
 
     environment {
         REGISTRY_USER = "jeyzdev"
@@ -11,12 +10,11 @@ pipeline {
 
     stages {
         stage('Deploy') {
+            agent any // จองเครื่องเฉพาะตอนทำงาน
             steps {
                 script {
-                    // Login ก่อน
                     sh "echo ${DOCKER_CREDS_PSW} | docker login -u ${DOCKER_CREDS_USR} --password-stdin"
                     
-                    // รัน deploy โดยดึงไฟล์ .env จากเครื่อง host
                     sh """
                     docker stop ${IMAGE_NAME} || true
                     docker rm ${IMAGE_NAME} || true
@@ -33,10 +31,12 @@ pipeline {
 
     post {
         always {
-            // คราวนี้จะไม่ออก error แล้ว เพราะมี agent any คุมอยู่ด้านบน
-            node {
-                sh "docker logout"
-                cleanWs()
+            // ใช้ script block เพื่อช่วยให้รัน sh ใน post ได้นิ่งขึ้น
+            script {
+                node('built-in' || 'master') { // ระบุชื่อ node พื้นฐานของ Jenkins
+                    sh "docker logout || true"
+                    cleanWs()
+                }
             }
         }
     }
