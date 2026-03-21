@@ -1,49 +1,23 @@
 pipeline {
     agent any
-
     environment {
+        REGISTRY = "jeyzdev"
         IMAGE_NAME = "spring-boot-app"
-        CONTAINER_NAME = "spring-boot-container"
+        VERSION = "${env.BUILD_NUMBER}"
     }
-
     stages {
-        stage('Checkout') {
+        stage('Build & Push') {
             steps {
-                git branch: 'main', url: 'https://github.com/jeyz9/store-mate-api.git'
+                script {
+                    sh "docker build -t ${REGISTRY}/${IMAGE_NAME}:${VERSION} ."
+                    sh "docker push ${REGISTRY}/${IMAGE_NAME}:${VERSION}"
+                }
             }
         }
-
-        stage('Docker Build & Cleanup') {
+        stage('Deploy to Prod') {
             steps {
-                sh """
-                docker build -t ${IMAGE_NAME} .
-                docker image prune -f
-                """
+                sshPublisher(publishers: [sshPublisherDesc(configName: 'prod-server', transfers: [sshTransfer(remoteDirectory: '', sourceFiles: 'docker-compose.yml')], execCommand: 'docker-compose pull && docker-compose up -d')])
             }
-        }
-
-        stage('Deploy') {
-            steps {
-                sh """
-                docker stop ${CONTAINER_NAME} || true
-                docker rm ${CONTAINER_NAME} || true
-                docker run -d -p 8081:8080 \
-                --name ${CONTAINER_NAME} \
-                ${IMAGE_NAME}
-                """
-            }
-        }
-    }
-
-    post {
-        success {
-            echo '🚀 Deploy Success!'
-        }
-        failure {
-            echo '❌ Build Failed!'
-        }
-        always {
-            cleanWs()
         }
     }
 }
