@@ -34,8 +34,10 @@ pipeline {
     post {
         always {
             // คราวนี้จะไม่ออก error แล้ว เพราะมี agent any คุมอยู่ด้านบน
-            sh "docker logout"
-            cleanWs()
+            node {
+                sh "docker logout"
+                cleanWs()
+            }
         }
     }
 }
