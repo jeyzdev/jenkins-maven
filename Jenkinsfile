@@ -1,5 +1,5 @@
 pipeline {
-    agent none // ปิด global agent เพื่อไปคุมเองในแต่ละส่วน
+    agent any // ใช้ agent any ตัวเดียวที่ด้านบนสุด
 
     environment {
         REGISTRY_USER = "jeyzdev"
@@ -9,12 +9,13 @@ pipeline {
     }
 
     stages {
-        stage('Deploy') {
-            agent any // จองเครื่องเฉพาะตอนทำงาน
+        stage('Deploy to Prod') {
             steps {
                 script {
+                    // Login
                     sh "echo ${DOCKER_CREDS_PSW} | docker login -u ${DOCKER_CREDS_USR} --password-stdin"
                     
+                    // สั่งรัน Container โดยใช้ไฟล์ .env ที่เราสร้างไว้บนเครื่อง
                     sh """
                     docker stop ${IMAGE_NAME} || true
                     docker rm ${IMAGE_NAME} || true
@@ -24,6 +25,9 @@ pipeline {
                       --env-file /home/ubuntu/app/.env \
                       ${REGISTRY_USER}/${IMAGE_NAME}:latest
                     """
+                    
+                    // Logout ทันทีหลังจากสั่งงานเสร็จใน stage นี้เลย
+                    sh "docker logout"
                 }
             }
         }
@@ -31,13 +35,8 @@ pipeline {
 
     post {
         always {
-            // ใช้ script block เพื่อช่วยให้รัน sh ใน post ได้นิ่งขึ้น
-            script {
-                node('built-in' || 'master') { // ระบุชื่อ node พื้นฐานของ Jenkins
-                    sh "docker logout || true"
-                    cleanWs()
-                }
-            }
+            // เหลือแค่ล้าง Workspace ก็พอครับ
+            cleanWs()
         }
     }
 }
