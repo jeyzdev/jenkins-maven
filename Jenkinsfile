@@ -1,11 +1,5 @@
 pipeline {
-    agent {
-        docker {
-            image 'jenkins/jenkins:lts'
-            // ใส่ -u 0 เพื่อสั่งให้ pipeline รันด้วย root ตลอดทั้งสเตจ
-            args '-u 0 -v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
 
     environment {
         IMAGE_NAME = "spring-boot-app"
