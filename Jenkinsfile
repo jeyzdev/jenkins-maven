@@ -49,7 +49,7 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh 'curl -X POST ${VERCEL_HOOK_URL}'
+                sh "curl -X POST ${VERCEL_HOOK_URL}"
             }
         }
     }
