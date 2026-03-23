@@ -2,11 +2,12 @@ pipeline {
     agent any 
 
     environment {
-        REGISTRY_USER = "jeyzdev"
-        IMAGE_NAME    = "spring-boot-app"
-        DOCKER_HUB    = credentials('docker-hub-creds')
+        // REGISTRY_USER = "jeyzdev"
+        // IMAGE_NAME    = "spring-boot-app"
+        // DOCKER_HUB    = credentials('docker-hub-creds')
         // URL ของ Repo ที่เก็บ Source Code ของแอปฯ
-        APP_REPO_URL  = "https://github.com/jeyz9/store-mate-api.git" 
+        APP_REPO_URL  = "https://github.com/nabnoey/storemate.git"
+        VERCEL_HOOK_URL = credentials('vercel-token')
     }
 
     stages {
@@ -24,16 +25,23 @@ pipeline {
             }
         }
 
-        stage('Build & Push') {
+        stage('Install Dependencies') {
+          steps {
+            script {
+                    // เข้าไปรัน Docker Build ข้างในโฟลเดอร์ที่เพิ่งดึงมา
+                    dir('app-source') {
+                        sh 'npm install'
+                    }
+                }
+          }
+        }
+
+        stage('Build') {
             steps {
                 script {
                     // เข้าไปรัน Docker Build ข้างในโฟลเดอร์ที่เพิ่งดึงมา
                     dir('app-source') {
-                        sh "echo ${DOCKER_HUB_PSW} | docker login -u ${DOCKER_HUB_USR} --password-stdin"
-                        
-                        // ตอนนี้ Docker จะเห็น Dockerfile เพราะเราอยู่ในโฟลเดอร์ app-source แล้ว
-                        sh "docker build -t ${REGISTRY_USER}/${IMAGE_NAME}:latest ."
-                        sh "docker push ${REGISTRY_USER}/${IMAGE_NAME}:latest"
+                        sh 'npm run build'
                     }
                 }
             }
@@ -41,17 +49,7 @@ pipeline {
 
         stage('Deploy') {
             steps {
-                sh """
-                docker stop ${IMAGE_NAME} || true
-                docker rm ${IMAGE_NAME} || true
-                docker run -d \
-                  --name ${IMAGE_NAME} \
-                  -p 8081:8080 \
-                  --restart always \
-                  --env-file /home/ubuntu/app/.env \
-                  ${REGISTRY_USER}/${IMAGE_NAME}:latest
-                """
-                sh "docker logout"
+                sh 'curl -X POST ${VERCEL_HOOK_URL}'
             }
         }
     }
